@@ -47,71 +47,93 @@ def checkOrange():
 
 def checkEmag1():
     status = "Stoc epuizat"
-    r = requests.get("https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
-    if status in r.text:
-        return False
-    return checkPriceEmag(r)
+    try:
+        r = requests.get("https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
+
+        if status in r.text:
+            return False
+        return checkPriceEmag(r)
+    except:
+        print("Could not check Emag1 stock")
 
 def checkEmag2():
     status = "Stoc epuizat"
-    r = requests.get("https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
+    try:
+        r = requests.get("https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
 
-    if status in r.text:
-        return False
-    return checkPriceEmag(r)
+        if status in r.text:
+            return False
+        return checkPriceEmag(r)
+    except:
+        print("Could not check Emag2 stock")
 
 def checkPriceEmag(r):
-    soup = BeautifulSoup(r.content, features="lxml")
-    product = soup.find('div', class_='main-product-form')
-    if product is None:
-        product = soup.find('form', class_='main-product-form')
+    try:
+        soup = BeautifulSoup(r.content, features="lxml")
+        product = soup.find('div', class_='main-product-form')
+        if product is None:
+            product = soup.find('form', class_='main-product-form')
 
-    p = product.find('p', class_='product-new-price')
+        p = product.find('p', class_='product-new-price')
 
-    p = p.get_text().strip()
-    multiple = 'oferte de la'
-    multiple_index = p.find(multiple)
-    if multiple_index != -1:
-        p = p[multiple_index + len(multiple):]
-    price = int(''.join(filter(str.isdigit, p))) / 100
-    debug_info = "{:.2f}".format(price)
-    if price > max_price:
-        debug_info += " pentru " + soup.find('h1', class_='page-title').get_text().strip() + " E STRIGATOR LA CER"
-    else:
-        debug_info += " NICEEEEEEEEEEEEEEEEE"
-    print(debug_info)
-    return price < max_price
+        p = p.get_text().strip()
+        multiple = 'oferte de la'
+        multiple_index = p.find(multiple)
+        if multiple_index != -1:
+            p = p[multiple_index + len(multiple):]
+        price = int(''.join(filter(str.isdigit, p))) / 100
+        debug_info = "{:.2f}".format(price)
+        if price > max_price:
+            debug_info = "[E STRIGATOR LA CER] " + debug_info + " pentru " + soup.find('h1', class_='page-title').get_text().strip()
+        else:
+            debug_info += " NICEEEEEEEEEEEEEEEEE"
+        print(debug_info)
+        return price < max_price
+    except:
+        print("Could not check price")
 
-def checkGamers():
-    status = "Epuizat la precomandă, indisponibil"
-    r = requests.get("https://www.gamers.ro/playstation5/playstation-5-825gb")
-    if status in r.text:
-        in_stock = False
-    else:
-        in_stock = True
 
-    return in_stock
+gmail_user = 'stockcecar@gmail.com'
+to = [
+    "razvanrtr@outlook.com",
+    "ioanaa.alexandru98@gmail.com",
+    "chris.luntraru@gmail.com"
+]
 
-def sendEmail(site, adresa):
-    gmail_user = 'stockcecar@gmail.com'
+def sendEmail(server, site, adresa):
+    try:
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        mesaj = "\n" + "IN STOC: " + site + " LINK: " + adresa + " \n" + "TIMESTAMP: " + current_time
+
+        for i in to:
+            server.sendmail(gmail_user, i, mesaj)
+    except:
+        print ('Could not send mail')
+
+def start_mail_server():
     gmail_password = 'SSFzsNAy6zVpDVt'
 
     try:
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.ehlo()
         server.login(gmail_user, gmail_password)
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        mesaj = "\n" + "IN STOC: " + site + " LINK: " + adresa + " \n" + "TIMESTAMP: " + current_time
-        server.sendmail("stockcecar@gmail.com", "razvanrtr@outlook.com", mesaj)
-        # server.sendmail("stockcecar@gmail.com", "chris.luntraru@gmail.com", mesaj)
-        # server.sendmail("stockcecar@gmail.com", "ioanaa.alexandru98@gmail.com", mesaj)
-        server.close()
+
+        for i in to:
+            server.sendmail(gmail_user, i, "Stock Checker Started")
+        return server
     except:
-        print ('Something went wrong...')
+        print('Could not start server')
+
+def stop_mail_server(server):
+    try:
+        server.close()
+        print("server closed")
+    except:
+        print('Could not stop server')
 
 def main():
-    sendEmail("CHECK BOT STARTED", "null")
+    server = start_mail_server()
     try:
         while True:
             # if (checkAltex() == True):
@@ -121,17 +143,20 @@ def main():
             #     sendEmail("Orange", "https://www.orange.ro/magazin-online/obiecte-conectate/consola-playstation-5")
             #     print("Orange: Item is in stock")
             if (checkEmag1() == True):
-                sendEmail("Emag", "https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
+                sendEmail(server, "Emag", "https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
                 print("Emag: Item is in stock")
             if (checkEmag2() == True):
-                sendEmail("Emag", "https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
+                sendEmail(server, "Emag", "https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
                 print("Emag: Item is in stock")
             # if (checkGamers() == True):
             #     sendEmail("Gamers", "https://www.gamers.ro/playstation5/playstation-5-825gb")
             #     print("Gamers: Item is in stock")
             time.sleep(random.randint(30, 60))
     except KeyboardInterrupt:
-        print("closed")
+        print("stopped")
+    finally:
+        stop_mail_server(server)
+
 
 if __name__ == "__main__":
     main()
