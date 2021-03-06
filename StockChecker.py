@@ -190,6 +190,9 @@ def start_mail_server():
         now = datetime.now()
         current_time = now.strftime("%H-%M-%S")
 
+        if not os.path.exists('logs'):
+            os.makedirs('logs')
+            
         log_file = open(os.path.join("logs", "log{}.txt".format(current_time)), "w")
         print(log_file.name)
 
