@@ -16,25 +16,7 @@ from datetime import datetime
 
 max_price = 3000
 log_file = None
-
-
-def checkAltex():
-    status = "Nu au fost gasite produse conform criteriilor selectate."
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36',
-        "Upgrade-Insecure-Requests": "1", "DNT": "1",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5", "Accept-Encoding": "gzip, deflate"}
-    r = requests.get("https://altex.ro/console-ps5/cpl/", headers=headers)
-    r.encoding = 'utf-8'
-    if status in r.text:
-        in_stock = False
-    else:
-        in_stock = True
-
-    return in_stock
-
+server = None
 
 h = [
     'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36',
@@ -49,29 +31,22 @@ h = [
     'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0',
 ]
 
-
-def checkOrange():
-    requests.packages.urllib3.disable_warnings()
-    requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS += ':HIGH:!DH:!aNULL'
-    try:
-        requests.packages.urllib3.contrib.pyopenssl.util.ssl_.DEFAULT_CIPHERS += ':HIGH:!DH:!aNULL'
-    except AttributeError:
-        # no pyopenssl support used / needed / available
-        pass
-
-    status = "Momentan produsul nu este"
-
-    r = requests.get("https://www.orange.ro/magazin-online/obiecte-conectate/consola-playstation-5")
-    r.encoding = 'utf-8'
-    if status in r.text:
-        in_stock = False
-    else:
-        in_stock = True
-
-    return in_stock
+class NoPriceFoundException(Exception):
+    pass
 
 
-def checkEmag1():
+def checkEMAG():
+    links = ["https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/",
+             "https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/"]
+
+    for link in links:
+        if checkEMAGLink(link):
+            sendEmail(server, "eMAG",
+                      "https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
+            print("Emag: Item is in stock")
+
+def checkEMAGLink(link):
+    global server
     status = "Stoc epuizat"
 
     random_nr = str(random.randint(10 ** 16, 99999999999999999))
@@ -91,43 +66,50 @@ def checkEmag1():
     }
 
     try:
-        r = requests.get("https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/", headers=header)
+        r = requests.get(link, headers=header)
 
         if status in r.text:
             return False
-        return checkPriceEmag(r)
+
+        ans = checkPriceEMAG(r)
+
+        if ans == 'Exception':
+            msg = EmailMessage()
+            msg.set_content(
+                "Could not check price on link: {}\nPlease inspect the problem!\n\nTimestamp: {}".format(link,getTimeStamp()))
+
+            msg['Subject'] = 'Problem occured'
+            msg['From'] = "stockcecar@gmail.com"
+            msg['To'] = "razvanrtr@outlook.com"
+
+            server.send_message(msg)
+
+            return
+
+        return ans
+
+    except NoPriceFoundException:
+        msg = EmailMessage()
+        msg.set_content(
+            "Could not check price on link: {}\nPlease inspect the problem!\n\nTimestamp: {}".format(link,
+                                                                                                     getTimeStamp()))
+
+        msg['Subject'] = 'Problem occured'
+        msg['From'] = "stockcecar@gmail.com"
+        msg['To'] = "razvanrtr@outlook.com"
+
+        server.send_message(msg)
+
     except Exception as e:
-        print("Could not check Emag1 stock")
-        print(e)
+        print("Could not check eMAG stock")
+        print("Error: {}".format(e))
 
 
-def checkEmag2():
-    status = "Stoc epuizat"
-
-    headers = ({'User-Agent':
-                    'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'})
-
-    header = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
-        'referer': 'https://www.google.com/'
-    }
-
-    try:
-        r = requests.get("https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/", headers=header)
-
-        if status in r.text:
-            return False
-        return checkPriceEmag(r)
-    except Exception as e:
-        print("Could not check Emag2 stock")
-        print(e)
-
-
-def checkPriceEmag(r):
+def checkPriceEMAG(responseBody):
     try:
         global log_file
 
-        soup = BeautifulSoup(r.content, features="lxml")
+        soup = BeautifulSoup(responseBody.content, features="lxml")
         product = soup.find('div', class_='main-product-form')
         if product is None:
             product = soup.find('form', class_='main-product-form')
@@ -148,16 +130,15 @@ def checkPriceEmag(r):
             debug_info += " NICEEEEEEEEEEEEEEEEE"
         print(debug_info)
 
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-
-        log_file.write("[{}] {}\n".format(current_time, debug_info))
+        log_file.write("[{}] {}\n".format(getTimeStamp(), debug_info))
         return price < max_price
+
     except Exception as e:
         print("Could not check price")
         print("Error: " + str(e))
         # print("Got: " + str(soup))
-
+        # return 'Exception'
+        raise NoPriceFoundException()
 
 gmail_user = 'stockcecar@gmail.com'
 to = [
@@ -169,15 +150,18 @@ to = [
 # "ioanaa.alexandru98@gmail.com",
 # "chris.luntraru@gmail.com"
 
-def sendEmail(server, site, adresa):
+def getTimeStamp():
+    now = datetime.now()
+    return now.strftime("%H:%M:%S")
+
+def sendEmail(site, link):
     try:
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
+        global  server
 
         msg = EmailMessage()
 
         subject = 'Found PS5 on {}'.format(site)
-        mesaj = "Link: {}\nHURRY UP!!!\n\nTimestamp: {}".format(adresa, current_time)
+        mesaj = "Link: {}\nHURRY UP!!!\n\nTimestamp: {}".format(link, getTimeStamp())
 
         msg.set_content(mesaj)
         msg['Subject'] = subject
@@ -194,6 +178,7 @@ def sendEmail(server, site, adresa):
 
 def start_mail_server():
     global log_file
+    global server
 
     gmail_password = 'iskclablyfksortj'
 
@@ -206,8 +191,7 @@ def start_mail_server():
         server.ehlo()
         server.login(gmail_user, gmail_password)
 
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
+        current_time = getTimeStamp()
 
         msg = EmailMessage()
         msg.set_content("Timestamp: {}".format(current_time))
@@ -218,33 +202,30 @@ def start_mail_server():
 
         server.send_message(msg)
 
-        now = datetime.now()
-        current_time = now.strftime("%H-%M-%S")
 
         if not os.path.exists('logs'):
             os.makedirs('logs')
 
-        log_file = open(os.path.join("logs", "log{}.txt".format(current_time)), "w")
+        log_file = open(os.path.join("logs", "log{}.txt".format(current_time.replace(':','-'))), "w")
 
         return server
     except Exception as e:
         print('Could not start server')
-        print(e)
+        raise e
 
 
-def stop_mail_server(server):
+def stop_mail_server():
     try:
         global log_file
+        global server
+
         filename = log_file.name
         log_file.close()
 
         f = open(filename, "r")
 
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-
         msg = EmailMessage()
-        msg.set_content("Timestamp: {}".format(current_time))
+        msg.set_content("Timestamp: {}".format(getTimeStamp()))
         msg.add_attachment(f.read(), filename="log_file.txt")
 
         msg['Subject'] = 'StockChecker stopped'
@@ -263,26 +244,13 @@ def stop_mail_server(server):
 
 
 def main():
+    global server
     server = start_mail_server()
     try:
         index = 0
         while True:
-            # if (checkAltex() == True):
-            #     sendEmail("Altex", "https://altex.ro/console-ps5/cpl/")
-            #     print("Altex: Item is in stock")
-            # if (checkOrange() == True):
-            #     sendEmail("Orange", "https://www.orange.ro/magazin-online/obiecte-conectate/consola-playstation-5")
-            #     print("Orange: Item is in stock")
-            if checkEmag1():
-                sendEmail(server, "eMAG",
-                          "https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
-                print("Emag: Item is in stock")
-            if checkEmag2():
-                sendEmail(server, "eMAG", "https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
-                print("Emag: Item is in stock")
-            # if (checkGamers() == True):
-            #     sendEmail("Gamers", "https://www.gamers.ro/playstation5/playstation-5-825gb")
-            #     print("Gamers: Item is in stock")
+            checkEMAG()
+
             index += 1
             if index % 50 == 0:
                 msg = EmailMessage()
@@ -298,7 +266,7 @@ def main():
     except KeyboardInterrupt:
         print("stopped")
     finally:
-        stop_mail_server(server)
+        stop_mail_server()
 
 
 if __name__ == "__main__":
