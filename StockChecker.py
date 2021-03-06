@@ -125,6 +125,10 @@ to = [
 def sendEmail(server, site, adresa):
     try:
         now = datetime.now()
+
+        if int(str(now.minute)) == 0:
+            server.sendmail(gmail_user, to[0], "Still working")
+
         current_time = now.strftime("%H:%M:%S")
         mesaj = "\n" + "IN STOC: " + site + " LINK: " + adresa + " \n" + "TIMESTAMP: " + current_time
 
