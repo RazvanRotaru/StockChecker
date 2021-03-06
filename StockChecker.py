@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 
 # Import the email modules we'll need
 from email.mime.text import MIMEText
+from email.message import EmailMessage
 from datetime import datetime
 
 max_price = 3000
@@ -84,9 +85,13 @@ def checkEmag1():
 
     headers = ({'User-Agent': ua})
 
+    header = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
+        'referer': 'https://www.google.com/'
+    }
 
     try:
-        r = requests.get("https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
+        r = requests.get("https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/", headers=header)
 
         if status in r.text:
             return False
@@ -102,9 +107,13 @@ def checkEmag2():
     headers = ({'User-Agent':
                     'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'})
 
+    header = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
+        'referer': 'https://www.google.com/'
+    }
 
     try:
-        r = requests.get("https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
+        r = requests.get("https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/", headers=header)
 
         if status in r.text:
             return False
@@ -155,17 +164,29 @@ to = [
     "razvanrtr@outlook.com",
     "ioanaa.alexandru98@gmail.com",
     "chris.luntraru@gmail.com"
-]
 
+]
+# "ioanaa.alexandru98@gmail.com",
+# "chris.luntraru@gmail.com"
 
 def sendEmail(server, site, adresa):
     try:
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
-        mesaj = "\n" + "IN STOC: " + site + " LINK: " + adresa + " \n" + "TIMESTAMP: " + current_time
+
+        msg = EmailMessage()
+
+        subject = 'Found PS5 on {}'.format(site)
+        mesaj = "Link: {}\nHURRY UP!!!\n\nTimestamp: {}".format(adresa, current_time)
+
+        msg.set_content(mesaj)
+        msg['Subject'] = subject
+        msg['From'] = "stockcecar@gmail.com"
 
         for i in to:
-            server.sendmail(gmail_user, i, mesaj)
+            msg['To'] = i
+            server.send_message(msg)
+
     except Exception as e:
         print('Could not send mail')
         print(e)
@@ -185,7 +206,17 @@ def start_mail_server():
         server.ehlo()
         server.login(gmail_user, gmail_password)
 
-        server.sendmail(gmail_user, to[0], "Stock Checker Started")
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+
+        msg = EmailMessage()
+        msg.set_content("Timestamp: {}".format(current_time))
+
+        msg['Subject'] = 'StockChecker started'
+        msg['From'] = "stockcecar@gmail.com"
+        msg['To'] = "razvanrtr@outlook.com"
+
+        server.send_message(msg)
 
         now = datetime.now()
         current_time = now.strftime("%H-%M-%S")
@@ -194,7 +225,6 @@ def start_mail_server():
             os.makedirs('logs')
 
         log_file = open(os.path.join("logs", "log{}.txt".format(current_time)), "w")
-        print(log_file.name)
 
         return server
     except Exception as e:
@@ -205,13 +235,31 @@ def start_mail_server():
 def stop_mail_server(server):
     try:
         global log_file
+        filename = log_file.name
+        log_file.close()
+
+        f = open(filename, "r")
+
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+
+        msg = EmailMessage()
+        msg.set_content("Timestamp: {}".format(current_time))
+        msg.add_attachment(f.read(), filename="log_file.txt")
+
+        msg['Subject'] = 'StockChecker stopped'
+        msg['From'] = "stockcecar@gmail.com"
+        msg['To'] = "razvanrtr@outlook.com"
+
+        server.send_message(msg)
 
         server.close()
-        log_file.close()
+        f.close()
         print("server closed")
     except Exception as e:
         print('Could not stop server')
         print(e)
+        raise e
 
 
 def main():
@@ -226,18 +274,25 @@ def main():
             #     sendEmail("Orange", "https://www.orange.ro/magazin-online/obiecte-conectate/consola-playstation-5")
             #     print("Orange: Item is in stock")
             if checkEmag1():
-                sendEmail(server, "Emag",
+                sendEmail(server, "eMAG",
                           "https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
                 print("Emag: Item is in stock")
             if checkEmag2():
-                sendEmail(server, "Emag", "https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
+                sendEmail(server, "eMAG", "https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
                 print("Emag: Item is in stock")
             # if (checkGamers() == True):
             #     sendEmail("Gamers", "https://www.gamers.ro/playstation5/playstation-5-825gb")
             #     print("Gamers: Item is in stock")
             index += 1
-            if index % 100 == 0:
-                server.sendmail(gmail_user, to[0], "Stock Checker did {} checks".format(index))
+            if index % 50 == 0:
+                msg = EmailMessage()
+                msg.set_content( "StockChecker did {} checks".format(index))
+
+                msg['Subject'] = 'Update'
+                msg['From'] = "stockcecar@gmail.com"
+                msg['To'] = "razvanrtr@outlook.com"
+
+                server.send_message(msg)
 
             time.sleep(random.randint(30, 60))
     except KeyboardInterrupt:
