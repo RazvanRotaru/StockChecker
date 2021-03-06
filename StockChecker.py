@@ -104,31 +104,34 @@ def sendEmail(site, adresa):
         current_time = now.strftime("%H:%M:%S")
         mesaj = "\n" + "IN STOC: " + site + " LINK: " + adresa + " \n" + "TIMESTAMP: " + current_time
         server.sendmail("stockcecar@gmail.com", "razvanrtr@outlook.com", mesaj)
-        server.sendmail("stockcecar@gmail.com", "chris.luntraru@gmail.com", mesaj)
-        server.sendmail("stockcecar@gmail.com", "ioanaa.alexandru98@gmail.com", mesaj)
+        # server.sendmail("stockcecar@gmail.com", "chris.luntraru@gmail.com", mesaj)
+        # server.sendmail("stockcecar@gmail.com", "ioanaa.alexandru98@gmail.com", mesaj)
         server.close()
     except:
         print ('Something went wrong...')
 
 def main():
     sendEmail("CHECK BOT STARTED", "null")
-    while True:
-        # if (checkAltex() == True):
-        #     sendEmail("Altex", "https://altex.ro/console-ps5/cpl/")
-        #     print("Altex: Item is in stock")
-        # if (checkOrange() == True):
-        #     sendEmail("Orange", "https://www.orange.ro/magazin-online/obiecte-conectate/consola-playstation-5")
-        #     print("Orange: Item is in stock")
-        if (checkEmag1() == True):
-            sendEmail("Emag", "https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
-            print("Emag: Item is in stock")
-        if (checkEmag2() == True):
-            sendEmail("Emag", "https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
-            print("Emag: Item is in stock")
-        # if (checkGamers() == True):
-        #     sendEmail("Gamers", "https://www.gamers.ro/playstation5/playstation-5-825gb")
-        #     print("Gamers: Item is in stock")
-        time.sleep(random.randint(30, 60))
+    try:
+        while True:
+            # if (checkAltex() == True):
+            #     sendEmail("Altex", "https://altex.ro/console-ps5/cpl/")
+            #     print("Altex: Item is in stock")
+            # if (checkOrange() == True):
+            #     sendEmail("Orange", "https://www.orange.ro/magazin-online/obiecte-conectate/consola-playstation-5")
+            #     print("Orange: Item is in stock")
+            if (checkEmag1() == True):
+                sendEmail("Emag", "https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
+                print("Emag: Item is in stock")
+            if (checkEmag2() == True):
+                sendEmail("Emag", "https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
+                print("Emag: Item is in stock")
+            # if (checkGamers() == True):
+            #     sendEmail("Gamers", "https://www.gamers.ro/playstation5/playstation-5-825gb")
+            #     print("Gamers: Item is in stock")
+            time.sleep(random.randint(30, 60))
+    except KeyboardInterrupt:
+        print("closed")
 
 if __name__ == "__main__":
     main()
