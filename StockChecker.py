@@ -192,7 +192,7 @@ def start_mail_server():
 
         if not os.path.exists('logs'):
             os.makedirs('logs')
-            
+
         log_file = open(os.path.join("logs", "log{}.txt".format(current_time)), "w")
         print(log_file.name)
 
