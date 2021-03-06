@@ -1,3 +1,5 @@
+import ssl
+
 import requests
 import time
 import random
@@ -47,25 +49,44 @@ def checkOrange():
 
 def checkEmag1():
     status = "Stoc epuizat"
+
+    random_nr = str(random.randint(10 ** 16, 99999999999999999))
+    ua = "Opera/%s.%s (Windows NT %s.%s) Presto/%s.%s.%s Version/%s.%s" \
+ \
+         % (random_nr[0], random_nr[1:3], random_nr[4], random_nr[5], random_nr[6], random_nr[7:9], random_nr[10:13],
+            random_nr[13:15], random_nr[15:17])
+
+    # headers = ({'User-Agent':
+    #                 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'})
+
+    headers = ({'User-Agent': ua})
+
+
     try:
-        r = requests.get("https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/")
+        r = requests.get("https://www.emag.ro/consola-playstation-5-digital-edition-so-9396505/pd/DKKW72MBM/", headers=headers)
 
         if status in r.text:
             return False
         return checkPriceEmag(r)
-    except:
+    except Exception as e:
         print("Could not check Emag1 stock")
+        print(e)
 
 def checkEmag2():
     status = "Stoc epuizat"
+
+    headers = ({'User-Agent':
+                    'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'})
+
     try:
-        r = requests.get("https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/")
+        r = requests.get("https://www.emag.ro/consola-playstation-5-so-9396406/pd/DNKW72MBM/", headers=headers)
 
         if status in r.text:
             return False
         return checkPriceEmag(r)
-    except:
+    except Exception as e:
         print("Could not check Emag2 stock")
+        print(e)
 
 def checkPriceEmag(r):
     try:
@@ -89,9 +110,10 @@ def checkPriceEmag(r):
             debug_info += " NICEEEEEEEEEEEEEEEEE"
         print(debug_info)
         return price < max_price
-    except:
+    except Exception as e:
         print("Could not check price")
-
+        print("Error: " + str(e))
+        # print("Got: " + str(soup))
 
 gmail_user = 'stockcecar@gmail.com'
 to = [
@@ -108,29 +130,36 @@ def sendEmail(server, site, adresa):
 
         for i in to:
             server.sendmail(gmail_user, i, mesaj)
-    except:
+    except Exception as e:
         print ('Could not send mail')
+        print(e)
 
 def start_mail_server():
-    gmail_password = 'SSFzsNAy6zVpDVt'
+    gmail_password = 'iskclablyfksortj'
 
     try:
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        context = ssl.create_default_context()
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.ehlo()
+        server.starttls(context=context)
         server.ehlo()
         server.login(gmail_user, gmail_password)
 
-        for i in to:
-            server.sendmail(gmail_user, i, "Stock Checker Started")
+
+        server.sendmail(gmail_user, to[0], "Stock Checker Started")
         return server
-    except:
+    except Exception as e:
         print('Could not start server')
+        print(e)
 
 def stop_mail_server(server):
     try:
         server.close()
         print("server closed")
-    except:
+    except Exception as e:
         print('Could not stop server')
+        print(e)
 
 def main():
     server = start_mail_server()
