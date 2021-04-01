@@ -26,6 +26,7 @@ h = [
     'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0',
 ]
 
+#TODO add print function to write both to console and file
 
 class StockChecker:
     def __init__(self):
@@ -152,7 +153,7 @@ class StockChecker:
         except Exception as e:
             print('Could not check price {}'.format(e))
             return 'Exception'
-            # raise NoPriceFoundException()
+            # raise NoPriceFoundException(0735300875)
 
 
 class MailHandler:
